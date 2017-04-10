@@ -1,5 +1,5 @@
 import scrapy
-import json
+import json, re
 
 class FemaleSpider(scrapy.Spider):
     name = "female"
@@ -7,7 +7,7 @@ class FemaleSpider(scrapy.Spider):
 
     SEARCH_TEMPLATE = {"sex":"f",
                        "key":"",
-                       "stc":"1:31,2:28.36,3:155.170,23:1",
+                       "stc":"1:{0},2:28.36,3:155.170,23:1",
                        "sn":"default",
                        "sv":"1",
                        "p":"1",
@@ -16,8 +16,9 @@ class FemaleSpider(scrapy.Spider):
                        "pri_uid":"0",
                        "jsversion":"v5"};
     SEARCH_URL = "http://search.jiayuan.com/v2/search_v2.php"
+    PROVINCE_CODES = ['11','12','13','14','15','21','22','23','31','32','33','34','35','36','37','41','42','43','44','45','46','50','51','52','53','54','61','62','63','64','65','71','81','82','98','99']
 
-    MAX_PAGE_NUM = 10
+    MAX_PAGE_NUM = 10000
 
     NAME = None
     PWD = None
@@ -43,10 +44,13 @@ class FemaleSpider(scrapy.Spider):
     def after_login(self, response):
         pageNum = 1
 
-        formdata = self.SEARCH_TEMPLATE
-        formdata["p"] = str(pageNum)
+        for province in self.PROVINCE_CODES:
+            formdata = self.SEARCH_TEMPLATE
+            formdata["p"] = str(pageNum)
+            searchProvinceTpl = formdata["stc"]
+            formdata["stc"] = searchProvinceTpl.format(province)
 
-        yield scrapy.FormRequest(self.SEARCH_URL, meta = {'cookiejar' : response.meta['cookiejar'], "page_num": pageNum}, callback=self.parse, formdata=formdata)
+            yield scrapy.FormRequest(self.SEARCH_URL, meta = {'cookiejar' : response.meta['cookiejar'], "page_num": pageNum, "form_data": formdata}, callback=self.parse, formdata=formdata)
 
     def parse(self, response):
         responseText = response.body_as_unicode()
@@ -58,6 +62,12 @@ class FemaleSpider(scrapy.Spider):
         users = jsonresponse['userInfo']
 
         for user in users:
+            #norm user icon
+            userIcon = user['userIcon']
+            p = re.compile(r'title=(\S*)')
+            userIcon = p.findall(userIcon)
+            user['userIcon'] = userIcon
+
             yield user
 
         if len(users) > 0:
@@ -65,7 +75,7 @@ class FemaleSpider(scrapy.Spider):
             pageNum = pageNum + 1
 
             if pageNum <= self.MAX_PAGE_NUM:
-                formdata = self.SEARCH_TEMPLATE
+                formdata = response.meta['form_data']
                 formdata["p"] = str(pageNum)
 
-                yield scrapy.FormRequest(self.SEARCH_URL, meta = {'cookiejar' : response.meta['cookiejar'], "page_num": pageNum}, callback=self.parse, formdata=formdata)
+                yield scrapy.FormRequest(self.SEARCH_URL, meta = {'cookiejar' : response.meta['cookiejar'], "page_num": pageNum, "form_data": formdata}, callback=self.parse, formdata=formdata)

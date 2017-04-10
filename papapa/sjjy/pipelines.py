@@ -9,6 +9,7 @@ import json
 from scrapy.pipelines.images import ImagesPipeline
 from scrapy import Request
 import codecs
+import motor
 
 class JsonWithEncodingPipeline(object):
 
@@ -22,6 +23,26 @@ class JsonWithEncodingPipeline(object):
 
     def spider_closed(self, spider):
         self.file.close()
+
+class MongodbPipeline(object):
+    def __init__(self):
+        self.db = motor.MotorClient('localhost').sjjy
+
+    def process_item(self, item, spider):
+        self.db.User.find_one_and_update(
+             {'realUid': item['realUid']},
+             {'$set': item},
+             upsert=True,
+             callback=self._onInsert)
+
+        return item
+
+    def _onInsert(self, result, error):
+        if error:
+            raise error
+
+    def spider_closed(self, spider):
+        self.db.close()
 
 class ImageCachePipeline(ImagesPipeline):
     def get_media_requests(self, item, info):

@@ -64,7 +64,8 @@ DOWNLOADER_MIDDLEWARES = {
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
     'sjjy.pipelines.ImageCachePipeline': 500,
-    'sjjy.pipelines.JsonWithEncodingPipeline': 300,
+    #'sjjy.pipelines.JsonWithEncodingPipeline': 300,
+    'sjjy.pipelines.MongodbPipeline': 300,
 }
 
 IMAGES_STORE = './avatars'
